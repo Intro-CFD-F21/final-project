@@ -26,8 +26,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 75;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 75;   	% Number of points in the y-direction (use odd numbers only)
+imax = 81;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 81;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -56,18 +56,18 @@ six    = 6.0;
 
 nmax = 500000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
-imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
+imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.9;      % CFL number used to determine time step
+cfl  = 0.5;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-150; 	% Tolerance for iterative residual convergence
 rkappa = 0.1;   	% Time derivative preconditioning constant
-Re = 10;      	% Reynolds number = rho*Uinf*L/rmu
+Re = 100;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
 uinf = 1.0;      % Lid velocity (m/s)
 rho = 1.0;       % Density (kg/m^3)
@@ -507,28 +507,28 @@ global u
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
-% Side Walls
+% Top/Bottom Walls
 for j = 1:jmax-1
-    i = 1; % left
+    i = 1; % top
     u(i,j,2) = uinf;   
     u(i,j,3) = 0;  
     u(i,j,1) = 2*u(i+1,j,1)-u(i+2,j,1);
         
-    i=imax; % right
+    i=imax; % bottom
     u(i,j,2) = 0;    
     u(i,j,3) = 0; 
     u(i,j,1) = 2*u(i-1,j,1)-u(i-2,j,1);
 end
 
 
-% Top/Bottom Walls
+% Side Walls
 for i=1:imax
-    j = 1; % top
+    j = 1; % left
     u(1,j,2) = 0;
     u(1,j,3) = 0;
     u(i,j,1) = 2*u(i,j+1,1)-u(i,j+2,1);
         
-    j = jmax; % bottom
+    j = jmax; % right
     u(imax,j,2) = 0;
     u(imax,j,3) = 0;
     u(i,j,1) = 2*u(i,j-1,1)-u(i,j-2,1);
@@ -940,14 +940,14 @@ global artviscx artviscy
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 for i=3:imax-2
-    for j=1:jmax
+    for j=3:jmax-2
         uvel2=u(i,j,2).^two+u(i,j,3).^two;
         beta2=max(uvel2,rkappa*vel2ref);
         lambda_x=half*abs(u(i,j,2))+half*sqrt(u(i,j,2)^2+4*beta2);
         lambda_y=half*abs(u(i,j,3))+half*sqrt(u(i,j,3)^2+4*beta2);
          
         d4pdx4=(u(i+2,j,1)-four*u(i+1,j,1)+six*u(i,j,1)-four*u(i-1,j,1)+u(i-2,j,1))/dx^4;
-        d4pdy4=(u(i+2,j,1)-four*u(i+1,j,1)+six*u(i,j,1)-four*u(i-1,j,1)+u(i-2,j,1))/dy^4;
+        d4pdy4=(u(i,j+2,1)-four*u(i,j+1,1)+six*u(i,j,1)-four*u(i,j-1,1)+u(i,j-2,1))/dy^4;
         
         artviscx(i,j) = -lambda_x*Cx*dx^3/beta2*d4pdx4;
         artviscy(i,j) = -lambda_y*Cy*dy^3/beta2*d4pdy4;
