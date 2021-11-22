@@ -26,8 +26,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 81;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 81;   	% Number of points in the y-direction (use odd numbers only)
+imax = 51;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 51;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -56,7 +56,7 @@ six    = 6.0;
 
 nmax = 500000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
-imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
+imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
@@ -65,7 +65,7 @@ lim = 1;              % variable to be used as the limiter sensor (= 1 for press
 cfl  = 0.5;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
-toler = 1.e-150; 	% Tolerance for iterative residual convergence
+toler = 1.e-10; 	% Tolerance for iterative residual convergence
 rkappa = 0.1;   	% Time derivative preconditioning constant
 Re = 100;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
@@ -1006,9 +1006,9 @@ global artviscx artviscy dt s u
             uvel2=sqrt(u(i,j,2).^2+u(i,j,3).^2).^2;
             beta2=max(uvel2,rkappa*vel2ref);
                         
-            u(i,j,1)=u(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j));
-            u(i,j,2)=u(i,j,2)-dt(i,j)/rho*(rho*u(i,j,2)*dudx+rho*u(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j));
-            u(i,j,3)=u(i,j,3)-dt(i,j)/rho*(rho*u(i,j,3)*dvdx+rho*u(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j));
+            u(i,j,1)=u(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j,1));
+            u(i,j,2)=u(i,j,2)-dt(i,j)/rho*(rho*u(i,j,2)*dudx+rho*u(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j,2));
+            u(i,j,3)=u(i,j,3)-dt(i,j)/rho*(rho*u(i,j,3)*dvdx+rho*u(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j,3));
         end
     end
     
@@ -1067,9 +1067,9 @@ global artviscx artviscy dt s u
             beta2=max(uvel2,rkappa*vel2ref);
             
             
-            u(i,j,1)=u(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j));
-            u(i,j,2)=u(i,j,2)-dt(i,j)/rho*(rho*u(i,j,2)*dudx+rho*u(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j));
-            u(i,j,3)=u(i,j,3)-dt(i,j)/rho*(rho*u(i,j,3)*dvdx+rho*u(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j));
+            u(i,j,1)=u(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j,1));
+            u(i,j,2)=u(i,j,2)-dt(i,j)/rho*(rho*u(i,j,2)*dudx+rho*u(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j,2));
+            u(i,j,3)=u(i,j,3)-dt(i,j)/rho*(rho*u(i,j,3)*dvdx+rho*u(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j,3));
         end
     end
 
@@ -1190,7 +1190,7 @@ function [res, resinit, conv] = check_iterative_convergence...
 global zero
 global imax jmax neq fsmall
 global u uold dt fp1
-global dx dy rho rkappa rmu vel2ref artviscx artviscy % added, not part of original template
+global dx dy rho rkappa rmu vel2ref artviscx artviscy s % added, not part of original template
 
 % Compute iterative residuals to monitor iterative convergence
 
@@ -1220,9 +1220,9 @@ for i=2:imax-1
         d2vdy2=(uold(i,j+1,3)-2*uold(i,j,3)+uold(i,j-1,3))/dy^2;
         uvel2=sqrt(uold(i,j,2).^2+uold(i,j,3).^2).^2;
         beta2=max(uvel2,rkappa*vel2ref);
-        r1(i,j)=1/beta2*(p(i,j)-po(i,j))/dt(i,j)+rho*(uold(i+1,j,2)-uold(i-1,j,2))/2/dx+rho*(uold(i+1,j,3)-uold(i-1,j,3))/2/dy-artviscx(i,j)-artviscy(i,j);
-        r2(i,j)=rho*(uv(i,j)-uvo(i,j))/dt(i,j)+(rho*uold(i,j,2)*dudx+rho*uold(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2);
-        r3(i,j)=rho*(vv(i,j)-vvo(i,j))/dt(i,j)+(rho*uold(i,j,3)*dvdx+rho*uold(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2);
+        r1(i,j)=1/beta2*(p(i,j)-po(i,j))/dt(i,j)+rho*(uold(i+1,j,2)-uold(i-1,j,2))/2/dx+rho*(uold(i+1,j,3)-uold(i-1,j,3))/2/dy-artviscx(i,j)-artviscy(i,j)-s(i,j,1);
+        r2(i,j)=rho*(uv(i,j)-uvo(i,j))/dt(i,j)+(rho*uold(i,j,2)*dudx+rho*uold(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2)-s(i,j,2);
+        r3(i,j)=rho*(vv(i,j)-vvo(i,j))/dt(i,j)+(rho*uold(i,j,3)*dvdx+rho*uold(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2)-s(i,j,3);
     end
 end
 
@@ -1286,7 +1286,9 @@ if imms==1
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-
+rL1norm=[norm(u(:,:,1),1);norm(u(:,:,2),1);norm(u(:,:,3),1)];
+rL2norm=[norm(u(:,:,1),2);norm(u(:,:,2),2);norm(u(:,:,3),2)];
+rLinfnorm=[norm(u(:,:,1),Inf);norm(u(:,:,2),Inf);norm(u(:,:,3),Inf)];
 
 end
 
