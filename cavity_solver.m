@@ -17,7 +17,7 @@ global rlength rmu vel2ref dx dy rpi phi0 phix phiy phixy apx apy apxy fsinx fsi
 
 %**Use these variables cautiously as these are globally accessible from all functions.**
 
-global u;         % Solution vector [p, u, v]^T at each node
+global u;         %#ok<*GVMIS> % Solution vector [p, u, v]^T at each node
 global uold;      % Previous (old) solution vector
 global s;         % Source term
 global dt;        % Local time step at each node
@@ -26,8 +26,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 51;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 51;   	% Number of points in the y-direction (use odd numbers only)
+imax = 123;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 123;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -56,7 +56,7 @@ six    = 6.0;
 
 nmax = 500000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
-imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
+imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
@@ -109,7 +109,7 @@ fsinxy = [1.0, 1.0, 0.0];           % MMS constant to determine sine vs. cosine
 %************************************************************************
 %----- Looping indices --------
 
-i = 0;                       % i index (x direction)
+i = 0;                       %#ok<*NASGU> % i index (x direction)
 j = 0;                       % j index (y direction)
 k = 0;                       % k index (# of equations)
 n = 0;	                   % Iteration number index
@@ -217,7 +217,7 @@ compute_source_terms();
 
 %========== Main Loop ==========
 isConverged = 0;
-
+resf=[];
 for n = ninit:nmax
     % Calculate time step
     dtmin = compute_time_step(dtmin);
@@ -285,29 +285,46 @@ for n = ninit:nmax
     
     % plot
     figure(1)
-    ttp(n)=conv;
+    ttp(n)=conv; %#ok<*AGROW> 
     semilogy(ttp)
     %     ylim([0 1e-10])
     grid on
     drawnow
-    
-    if mod(n,100)==0
+%     figure;semilogy(resf(1,:));hold on;semilogy(resf(2,:));semilogy(resf(3,:));legend('p','u','v');
+    resf=[resf res];
+    if mod(n,100)==0 && imms==0
         figure(2)
         subplot(1,3,1)
-        contourf(flip(u(:,:,2)))
+        contourf((u(:,:,2)))
         colormap jet
         colorbar
         subplot(1,3,2)
-        contourf(flip(u(:,:,3)))
+        contourf((u(:,:,3)))
         colormap jet
         colorbar
         subplot(1,3,3)
-        contourf(flip(u(:,:,1)))
+        contourf((u(:,:,1)))
+        colormap jet
+        colorbar
+        drawnow
+    elseif mod(n,100)==0 && imms==1
+
+        figure(2)
+        subplot(1,3,1)
+        contourf((u(:,:,2)))
+        colormap jet
+        colorbar
+        subplot(1,3,2)
+        contourf((u(:,:,3)))
+        colormap jet
+        colorbar
+        subplot(1,3,3)
+        contourf((u(:,:,1)))
         colormap jet
         colorbar
         drawnow
     end
-    
+
     
     
     
@@ -446,7 +463,7 @@ else
         fscanf(fp4, '%lf %lf %lf', resinit(0), resinit(1), resinit(2)); % Needs initial iterative residuals for scaling
         for j=1:jmax
             for i=1:imax
-                fscanf(fp4, '%lf %lf %lf %lf %lf', x, y, u(i,j,1), u(i,j,2), u(i,j,3));
+                fscanf(fp4, '%lf %lf %lf %lf %lf', x, y, u(i,j,1), u(i,j,2), u(i,j,3)); %#ok<*NODEF> 
             end
         end
         ninit = ninit + 1;
@@ -498,7 +515,7 @@ function bndry(~)
 % i                        % i index (x direction)
 % j                        % j index (y direction)
 
-global zero two half imax jmax uinf
+global zero two half imax jmax uinf %#ok<*NUSED> 
 global u
 
 % This applies the cavity boundary conditions
@@ -508,14 +525,14 @@ global u
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 % Top/Bottom Walls
-for j = 1:jmax-1
-    i = 1; % top
-    u(i,j,2) = uinf;   
+for j = 1:jmax
+    i = 1; % bottom
+    u(i,j,2) = 0;   
     u(i,j,3) = 0;  
     u(i,j,1) = 2*u(i+1,j,1)-u(i+2,j,1);
         
-    i=imax; % bottom
-    u(i,j,2) = 0;    
+    i=imax; % top
+    u(i,j,2) = uinf;    
     u(i,j,3) = 0; 
     u(i,j,1) = 2*u(i-1,j,1)-u(i-2,j,1);
 end
@@ -1244,7 +1261,7 @@ res(3)=norm(r3)/resinit(3);
 % t(t<=0)=inf;
 % res(3)=min(min(t));
 
-conv=min(res(res>0));
+% conv=max(res(res>0));
 conv=max(max(max(u-uold)));
 
 % Write iterative residuals every 10 iterations
@@ -1262,7 +1279,7 @@ end
 end
 
 %************************************************************************
-function Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm)
+function Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm) %#ok<*INUSD> 
 %
 %Uses global variable(s): zero
 %Uses global variable(s): imax, jmax, neq, imms, xmax, xmin, ymax, ymin, rlength
