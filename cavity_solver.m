@@ -26,8 +26,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 123;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 123;   	% Number of points in the y-direction (use odd numbers only)
+imax = 81;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 81;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -56,7 +56,7 @@ six    = 6.0;
 
 nmax = 500000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
-imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
+imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
@@ -280,18 +280,19 @@ for n = ninit:nmax
     if( (mod(n,iterout)==0) )
         write_output(n, resinit, rtime);
     end
-    
-    
-    
+
+
+
     % plot
     figure(1)
-    ttp(n)=conv; %#ok<*AGROW> 
+    ttp(n)=conv; %#ok<*AGROW>
     semilogy(ttp)
     %     ylim([0 1e-10])
     grid on
     drawnow
-%     figure;semilogy(resf(1,:));hold on;semilogy(resf(2,:));semilogy(resf(3,:));legend('p','u','v');
     resf=[resf res];
+%     figure(3);semilogy(resf(1,:));hold on;semilogy(resf(2,:));semilogy(resf(3,:));legend('p','u','v');
+%     drawnow
     if mod(n,100)==0 && imms==0
         figure(2)
         subplot(1,3,1)
@@ -1207,7 +1208,7 @@ function [res, resinit, conv] = check_iterative_convergence...
 global zero
 global imax jmax neq fsmall
 global u uold dt fp1
-global dx dy rho rkappa rmu vel2ref artviscx artviscy s % added, not part of original template
+
 
 % Compute iterative residuals to monitor iterative convergence
 
@@ -1223,32 +1224,24 @@ vv=u(:,:,3);
 vvo=uold(:,:,3);
 
 
-for i=2:imax-1
-    for j=2:jmax-1
-        dudx=(uold(i+1,j,2)-uold(i-1,j,2))/2/dx;
-        dudy=(uold(i,j+1,2)-uold(i,j-1,2))/2/dy;
-        dvdx=(uold(i+1,j,3)-uold(i-1,j,3))/2/dx;
-        dvdy=(uold(i,j+1,3)-uold(i,j-1,3))/2/dy;
-        dpdx=(uold(i+1,j,1)-uold(i-1,j,1))/2/dx;
-        dpdy=(uold(i,j+1,1)-uold(i,j-1,1))/2/dy;
-        d2udx2=(uold(i+1,j,2)-2*uold(i,j,2)+uold(i-1,j,2))/dx^2;
-        d2vdx2=(uold(i+1,j,3)-2*uold(i,j,3)+uold(i-1,j,3))/dx^2;
-        d2udy2=(uold(i,j+1,2)-2*uold(i,j,2)+uold(i,j-1,2))/dy^2;
-        d2vdy2=(uold(i,j+1,3)-2*uold(i,j,3)+uold(i,j-1,3))/dy^2;
-        uvel2=sqrt(uold(i,j,2).^2+uold(i,j,3).^2).^2;
-        beta2=max(uvel2,rkappa*vel2ref);
-        r1(i,j)=1/beta2*(p(i,j)-po(i,j))/dt(i,j)+rho*(uold(i+1,j,2)-uold(i-1,j,2))/2/dx+rho*(uold(i+1,j,3)-uold(i-1,j,3))/2/dy-artviscx(i,j)-artviscy(i,j)-s(i,j,1);
-        r2(i,j)=rho*(uv(i,j)-uvo(i,j))/dt(i,j)+(rho*uold(i,j,2)*dudx+rho*uold(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2)-s(i,j,2);
-        r3(i,j)=rho*(vv(i,j)-vvo(i,j))/dt(i,j)+(rho*uold(i,j,3)*dvdx+rho*uold(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2)-s(i,j,3);
+for i=1:imax
+    for j=1:jmax
+        r1(i,j)=(p(i,j)-po(i,j))/dt(i,j);
+        r2(i,j)=(uv(i,j)-uvo(i,j))/dt(i,j);
+        r3(i,j)=(vv(i,j)-vvo(i,j))/dt(i,j);
     end
 end
+
+r1=max(rms(r1));
+r2=max(rms(r2));
+r3=max(rms(r3));
 
 if n==1 || n==10
    resinit=[norm(r1),norm(r2),norm(r3)]'; 
 end
-res(1)=norm(r1)/resinit(1);
-res(2)=norm(r2)/resinit(2);
-res(3)=norm(r3)/resinit(3);
+res(1)=norm(r1);
+res(2)=norm(r2);
+res(3)=norm(r3);
 
 % temp=abs(u-uold)./uold;
 % t=temp(:,:,1);
@@ -1261,8 +1254,8 @@ res(3)=norm(r3)/resinit(3);
 % t(t<=0)=inf;
 % res(3)=min(min(t));
 
-% conv=max(res(res>0));
-conv=max(max(max(u-uold)));
+conv=max(res(res>0));
+% conv=max(max(max(u-uold)));
 
 % Write iterative residuals every 10 iterations
 if ( (mod(n,10)==0)||(n==ninit) )
@@ -1302,10 +1295,18 @@ if imms==1
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
-
-rL1norm=[norm(u(:,:,1),1);norm(u(:,:,2),1);norm(u(:,:,3),1)];
-rL2norm=[norm(u(:,:,1),2);norm(u(:,:,2),2);norm(u(:,:,3),2)];
-rLinfnorm=[norm(u(:,:,1),Inf);norm(u(:,:,2),Inf);norm(u(:,:,3),Inf)];
+for j=1:jmax
+    for i=1:imax
+        for k=1:neq
+            x = (xmax - xmin)*(i-1)/(imax - 1);
+            y = (ymax - ymin)*(j-1)/(jmax - 1);
+            ummsArray(i,j,k) = umms(x,y,k);
+        end
+    end
+end
+rL1norm=[norm(u(:,:,1)-ummsArray(:,:,1),1);norm(u(:,:,2)-ummsArray(:,:,2),1);norm(u(:,:,3)-ummsArray(:,:,3),1)];
+rL2norm=[norm(u(:,:,1)-ummsArray(:,:,1),2);norm(u(:,:,2)-ummsArray(:,:,2),2);norm(u(:,:,3)-ummsArray(:,:,3),2)];
+rLinfnorm=[norm(u(:,:,1)-ummsArray(:,:,1),Inf);norm(u(:,:,2)-ummsArray(:,:,3),Inf);norm(u(:,:,3)-ummsArray(:,:,3),Inf)];
 
 end
 
