@@ -26,8 +26,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 51;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 51;   	% Number of points in the y-direction (use odd numbers only)
+imax = 35;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 35;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -297,15 +297,15 @@ for n = ninit:nmax
     if mod(n,100)==0 && imms==0
         figure(2)
         subplot(1,3,1)
-        contourf((u(:,:,2)),20)
+        contourf((u(:,:,2)'),20)
         colormap jet
         colorbar
         subplot(1,3,2)
-        contourf((u(:,:,3)),20)
+        contourf((u(:,:,3)'),20)
         colormap jet
         colorbar
         subplot(1,3,3)
-        contourf((u(:,:,1)),20)
+        contourf((u(:,:,1)'),20)
         colormap jet
         colorbar
         drawnow
@@ -549,7 +549,7 @@ for j = 1:jmax
     u(i,j,1) = 2*u(i+1,j,1)-u(i+2,j,1);
 
     i=imax; % top
-    u(i,j,2) = uinf;
+    u(i,j,2) = 0;
     u(i,j,3) = 0;
     u(i,j,1) = 2*u(i-1,j,1)-u(i-2,j,1);
 end
@@ -558,13 +558,13 @@ end
 % Side Walls
 for i=1:imax
     j = 1; % left
-    u(1,j,2) = 0;
-    u(1,j,3) = 0;
+    u(i,j,2) = 0;
+    u(i,j,3) = 0;
     u(i,j,1) = 2*u(i,j+1,1)-u(i,j+2,1);
 
     j = jmax; % right
-    u(imax,j,2) = 0;
-    u(imax,j,3) = 0;
+    u(i,j,2) = uinf;
+    u(i,j,3) = 0;
     u(i,j,1) = 2*u(i,j-1,1)-u(i,j-2,1);
 end
 
