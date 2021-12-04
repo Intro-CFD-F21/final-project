@@ -291,7 +291,9 @@ for n = ninit:nmax
     grid on
     %     drawnow
     resf=[resf res];
-    figure(3);semilogy(resf');legend('p','u','v');
+    figure(3)
+    semilogy(resf')
+    legend('p','u','v');
     grid on
     drawnow
     if mod(n,100)==0 && imms==0
