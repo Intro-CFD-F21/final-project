@@ -2,7 +2,7 @@ function [PrsMatrix, uvelMatrix, vvelMatrix] = cavity_solver(~)
 tic   %begin timer function
 %--- Variables for file handling ---
 %--- All files are globally accessible ---
-% 
+%
 global fp1 % For output of iterative residual history
 global fp2 % For output of field data (solution)
 %   global fp3 % For writing the restart file
@@ -26,8 +26,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 81;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 81;   	% Number of points in the y-direction (use odd numbers only)
+imax = 51;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 51;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -56,16 +56,16 @@ six    = 6.0;
 
 nmax = 500000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
-imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
+imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
 
-cfl  = 0.5;      % CFL number used to determine time step
+cfl  = 0.3;      % CFL number used to determine time step
 Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
-toler = 1.e-10; 	% Tolerance for iterative residual convergence
+toler = 1.e-6; 	% Tolerance for iterative residual convergence
 rkappa = 0.1;   	% Time derivative preconditioning constant
 Re = 100;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
@@ -221,38 +221,38 @@ resf=[];
 for n = ninit:nmax
     % Calculate time step
     dtmin = compute_time_step(dtmin);
-    
+
     % Save u values at time level n (u and uold are 2D arrays)
     uold = u;
-    
+
     if isgs==1 % ==Symmetric Gauss Seidel==
-        
+
         % Artificial Viscosity
         Compute_Artificial_Viscosity();
-        
+
         % Symmetric Gauss-Siedel: Forward Sweep
         SGS_forward_sweep();
-        
+
         % Set Boundary Conditions for u
         set_boundary_conditions();
-        
+
         % Artificial Viscosity
         Compute_Artificial_Viscosity();
-        
+
         % Symmetric Gauss-Siedel: Backward Sweep
         SGS_backward_sweep();
-        
+
         % Set Boundary Conditions for u
         set_boundary_conditions();
     else
         if isgs==0 % ==Point Jacobi==
-            
+
             % Artificial Viscosity
             Compute_Artificial_Viscosity();
-            
+
             % Point Jacobi: Forward Sweep
             point_Jacobi();
-            
+
             % Set Boundary Conditions for u
             set_boundary_conditions();
         else
@@ -260,22 +260,22 @@ for n = ninit:nmax
             return;
         end
     end
-    
+
     % Pressure Rescaling (based on center point)
     pressure_rescaling();
-    
+
     % Update the time
     rtime = rtime + dtmin;
-    
+
     % Check iterative convergence using L2 norms of iterative residuals
     [res, resinit, conv] = check_iterative_convergence(n, res, resinit, ninit, rtime, dtmin);
-    
+
     if(conv<toler)
         fprintf(fp1, '%d %e %e %e %e\n',n, rtime, res(1), res(2), res(3));
         isConverged = 1;
         break;
     end
-    
+
     % Output solution and restart file every 'iterout' steps
     if( (mod(n,iterout)==0) )
         write_output(n, resinit, rtime);
@@ -284,27 +284,28 @@ for n = ninit:nmax
 
 
     % plot
-    figure(1)
+    %     figure(1)
     ttp(n)=conv; %#ok<*AGROW>
-    semilogy(ttp)
+    %     semilogy(ttp)
     %     ylim([0 1e-10])
     grid on
-    drawnow
+    %     drawnow
     resf=[resf res];
-%     figure(3);semilogy(resf(1,:));hold on;semilogy(resf(2,:));semilogy(resf(3,:));legend('p','u','v');
-%     drawnow
+    figure(3);semilogy(resf');legend('p','u','v');
+    grid on
+    drawnow
     if mod(n,100)==0 && imms==0
         figure(2)
         subplot(1,3,1)
-        contourf((u(:,:,2)))
+        contourf((u(:,:,2)),20)
         colormap jet
         colorbar
         subplot(1,3,2)
-        contourf((u(:,:,3)))
+        contourf((u(:,:,3)),20)
         colormap jet
         colorbar
         subplot(1,3,3)
-        contourf((u(:,:,1)))
+        contourf((u(:,:,1)),20)
         colormap jet
         colorbar
         drawnow
@@ -312,23 +313,38 @@ for n = ninit:nmax
 
         figure(2)
         subplot(1,3,1)
-        contourf((u(:,:,2)))
+        contourf((u(:,:,2))',20)
         colormap jet
         colorbar
         subplot(1,3,2)
-        contourf((u(:,:,3)))
+        contourf((u(:,:,3))',20)
         colormap jet
         colorbar
         subplot(1,3,3)
-        contourf((u(:,:,1)))
+        contourf((u(:,:,1))',20)
+        colormap jet
+        colorbar
+        drawnow
+
+        figure(4)
+        subplot(1,3,1)
+        contourf(abs((u(:,:,2)-ummsArray(:,:,2))./ummsArray(:,:,2)*100),20)
+        colormap jet
+        colorbar
+        subplot(1,3,2)
+        contourf(abs((u(:,:,3)-ummsArray(:,:,3))./ummsArray(:,:,3)*100),20)
+        colormap jet
+        colorbar
+        subplot(1,3,3)
+        contourf(abs((u(:,:,1)-ummsArray(:,:,1))./ummsArray(:,:,1)*100),20)
         colormap jet
         colorbar
         drawnow
     end
 
-    
-    
-    
+
+
+
 end  % ========== End Main Loop ==========
 
 if isConverged == 0
@@ -396,18 +412,18 @@ fprintf(fp1,'variables="Iteration""Time(s)""Res1""Res2""Res3"\n');
 fp2 = fopen('./cavity.dat','w');
 fprintf(fp2,'TITLE = "Cavity Field Data"\n');
 if (imms==1)
-    
+
     fprintf(fp2,'variables="x(m)""y(m)""p(N/m^2)""u(m/s)""v(m/s)"');
     fprintf(fp2,'"p-exact""u-exact""v-exact""DE-p""DE-u""DE-v"\n');
-    
+
 else
-    
+
     if (imms==0)
-        
+
         fprintf(fp2,'variables="x(m)""y(m)""p(N/m^2)""u(m/s)""v(m/s)"\n');
-        
+
     else
-        
+
         fprintf('ERROR! imms must equal 0 or 1!!!\n');
         return;
     end
@@ -464,7 +480,7 @@ else
         fscanf(fp4, '%lf %lf %lf', resinit(0), resinit(1), resinit(2)); % Needs initial iterative residuals for scaling
         for j=1:jmax
             for i=1:imax
-                fscanf(fp4, '%lf %lf %lf %lf %lf', x, y, u(i,j,1), u(i,j,2), u(i,j,3)); %#ok<*NODEF> 
+                fscanf(fp4, '%lf %lf %lf %lf %lf', x, y, u(i,j,1), u(i,j,2), u(i,j,3)); %#ok<*NODEF>
             end
         end
         ninit = ninit + 1;
@@ -516,7 +532,7 @@ function bndry(~)
 % i                        % i index (x direction)
 % j                        % j index (y direction)
 
-global zero two half imax jmax uinf %#ok<*NUSED> 
+global zero two half imax jmax uinf %#ok<*NUSED>
 global u
 
 % This applies the cavity boundary conditions
@@ -528,13 +544,13 @@ global u
 % Top/Bottom Walls
 for j = 1:jmax
     i = 1; % bottom
-    u(i,j,2) = 0;   
-    u(i,j,3) = 0;  
+    u(i,j,2) = 0;
+    u(i,j,3) = 0;
     u(i,j,1) = 2*u(i+1,j,1)-u(i+2,j,1);
-        
+
     i=imax; % top
-    u(i,j,2) = uinf;    
-    u(i,j,3) = 0; 
+    u(i,j,2) = uinf;
+    u(i,j,3) = 0;
     u(i,j,1) = 2*u(i-1,j,1)-u(i-2,j,1);
 end
 
@@ -545,7 +561,7 @@ for i=1:imax
     u(1,j,2) = 0;
     u(1,j,3) = 0;
     u(i,j,1) = 2*u(i,j+1,1)-u(i,j+2,1);
-        
+
     j = jmax; % right
     u(imax,j,2) = 0;
     u(imax,j,3) = 0;
@@ -578,7 +594,7 @@ for j = 2:jmax-1
     end
     u(1,j,1) = two*u(2,j,1) - u(3,j,1);    % 2nd Order BC
     %    u(1,j,1) = u(2,j,1);                  % 1st Order BC
-    
+
     i=imax;
     for k = 1:neq
         u(i,j,k) = ummsArray(i,j,k);
@@ -595,7 +611,7 @@ for i=1:imax
     end
     u(i,1,1) = two*u(i,2,1) - u(i,3,1);   % 2nd Order BC
     %$$$$$$     u(i,1,1) = u(i,2,1);            % 1st Order BC
-    
+
     j = jmax;
     for k = 1:neq
         u(i,j,k) = ummsArray(i,j,k);
@@ -918,7 +934,7 @@ for i=2:imax-1
         dtvisc=dx*dy/4/(rmu/rho);
         dt(i,j)=cfl*min(dtconv,dtvisc);
         dtmin=min(dt(i,j),dtmin);
-        
+
     end
 end
 
@@ -959,17 +975,36 @@ global artviscx artviscy
 % !************************************************************** */
 for i=3:imax-2
     for j=3:jmax-2
-        uvel2=u(i,j,2).^two+u(i,j,3).^two;
-        beta2=max(uvel2,rkappa*vel2ref);
-        lambda_x=half*abs(u(i,j,2))+half*sqrt(u(i,j,2)^2+4*beta2);
-        lambda_y=half*abs(u(i,j,3))+half*sqrt(u(i,j,3)^2+4*beta2);
-         
-        d4pdx4=(u(i+2,j,1)-four*u(i+1,j,1)+six*u(i,j,1)-four*u(i-1,j,1)+u(i-2,j,1))/dx^4;
-        d4pdy4=(u(i,j+2,1)-four*u(i,j+1,1)+six*u(i,j,1)-four*u(i,j-1,1)+u(i,j-2,1))/dy^4;
-        
-        artviscx(i,j) = -lambda_x*Cx*dx^3/beta2*d4pdx4;
-        artviscy(i,j) = -lambda_y*Cy*dy^3/beta2*d4pdy4;
-        
+        if i==3 || j==3 || i==imax-2 || j==jmax-2 % handle "boundaries" for artificial viscosity
+            if (i==3 && j==3) % corners
+                artviscx(i,j) = (artviscx(i+1,j)+artviscx(i,j+1))/2;
+                artviscy(i,j) = (artviscy(i+1,j)+artviscy(i,j+1))/2;
+            elseif (i==3 && j==jmax-2) % corners
+                artviscx(i,j) = (artviscx(i+1,j)+artviscx(i,j-1))/2;
+                artviscy(i,j) = (artviscy(i+1,j)+artviscy(i,j-1))/2;
+            elseif (i==imax-2 && j==3)  % corners
+                artviscx(i,j) = (artviscx(i-1,j)+artviscx(i,j+1))/2;
+                artviscy(i,j) = (artviscy(i-1,j)+artviscy(i,j+1))/2;
+            elseif (i==imax-2 && j==jmax-2) % corners
+                artviscx(i,j) = (artviscx(i-1,j)+artviscx(i,j-1))/2;
+                artviscy(i,j) = (artviscy(i-1,j)+artviscy(i,j-1))/2;
+            else % boundaries that aren't corners
+                artviscx(i,j) = artviscx(i+1,j+1);
+                artviscy(i,j) = artviscy(i+1,j+1);
+            end
+
+        else
+            uvel2=u(i,j,2).^two+u(i,j,3).^two;
+            beta2=max(uvel2,rkappa*vel2ref);
+            lambda_x=half*abs(u(i,j,2))+half*sqrt(u(i,j,2)^2+4*beta2);
+            lambda_y=half*abs(u(i,j,3))+half*sqrt(u(i,j,3)^2+4*beta2);
+
+            d4pdx4=(u(i+2,j,1)-four*u(i+1,j,1)+six*u(i,j,1)-four*u(i-1,j,1)+u(i-2,j,1))/dx^4;
+            d4pdy4=(u(i,j+2,1)-four*u(i,j+1,1)+six*u(i,j,1)-four*u(i,j-1,1)+u(i,j-2,1))/dy^4;
+
+            artviscx(i,j) = -lambda_x*Cx*dx^3/beta2*d4pdx4;
+            artviscy(i,j) = -lambda_y*Cy*dy^3/beta2*d4pdy4;
+        end
     end
 end
 end
@@ -1008,30 +1043,30 @@ global artviscx artviscy dt s u
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-    for j=2:jmax-1
-        for i=2:imax-1       
-            dudx=(u(i+1,j,2)-u(i-1,j,2))/2/dx;
-            dudy=(u(i,j+1,2)-u(i,j-1,2))/2/dy;
-            dvdx=(u(i+1,j,3)-u(i-1,j,3))/2/dx;
-            dvdy=(u(i,j+1,3)-u(i,j-1,3))/2/dy;
-            dpdx=(u(i+1,j,1)-u(i-1,j,1))/2/dx;
-            dpdy=(u(i,j+1,1)-u(i,j-1,1))/2/dy;
-            d2udx2=(u(i+1,j,2)-2*u(i,j,2)+u(i-1,j,2))/dx^2;
-            d2vdx2=(u(i+1,j,3)-2*u(i,j,3)+u(i-1,j,3))/dx^2;
-            d2udy2=(u(i,j+1,2)-2*u(i,j,2)+u(i,j-1,2))/dy^2;
-            d2vdy2=(u(i,j+1,3)-2*u(i,j,3)+u(i,j-1,3))/dy^2;
-            
-            uvel2=sqrt(u(i,j,2).^2+u(i,j,3).^2).^2;
-            beta2=max(uvel2,rkappa*vel2ref);
-                        
-            u(i,j,1)=u(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j,1));
-            u(i,j,2)=u(i,j,2)-dt(i,j)/rho*(rho*u(i,j,2)*dudx+rho*u(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j,2));
-            u(i,j,3)=u(i,j,3)-dt(i,j)/rho*(rho*u(i,j,3)*dvdx+rho*u(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j,3));
-        end
+for j=2:jmax-1
+    for i=2:imax-1
+        dudx=(u(i+1,j,2)-u(i-1,j,2))/2/dx;
+        dudy=(u(i,j+1,2)-u(i,j-1,2))/2/dy;
+        dvdx=(u(i+1,j,3)-u(i-1,j,3))/2/dx;
+        dvdy=(u(i,j+1,3)-u(i,j-1,3))/2/dy;
+        dpdx=(u(i+1,j,1)-u(i-1,j,1))/2/dx;
+        dpdy=(u(i,j+1,1)-u(i,j-1,1))/2/dy;
+        d2udx2=(u(i+1,j,2)-2*u(i,j,2)+u(i-1,j,2))/dx^2;
+        d2vdx2=(u(i+1,j,3)-2*u(i,j,3)+u(i-1,j,3))/dx^2;
+        d2udy2=(u(i,j+1,2)-2*u(i,j,2)+u(i,j-1,2))/dy^2;
+        d2vdy2=(u(i,j+1,3)-2*u(i,j,3)+u(i,j-1,3))/dy^2;
+
+        uvel2=sqrt(u(i,j,2).^2+u(i,j,3).^2).^2;
+        beta2=max(uvel2,rkappa*vel2ref);
+
+        u(i,j,1)=u(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j,1));
+        u(i,j,2)=u(i,j,2)-dt(i,j)/rho*(rho*u(i,j,2)*dudx+rho*u(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j,2));
+        u(i,j,3)=u(i,j,3)-dt(i,j)/rho*(rho*u(i,j,3)*dvdx+rho*u(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j,3));
     end
-    
-    
-    
+end
+
+
+
 end
 %************************************************************************
 function SGS_backward_sweep(~)
@@ -1068,28 +1103,28 @@ global artviscx artviscy dt s u
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
-    for i=imax-1:2
-        for j=jmax-1:2       
-            dudx=(u(i+1,j,2)-u(i-1,j,2))/2/dx;
-            dudy=(u(i,j+1,2)-u(i,j-1,2))/2/dy;
-            dvdx=(u(i+1,j,3)-u(i-1,j,3))/2/dx;
-            dvdy=(u(i,j+1,3)-u(i,j-1,3))/2/dy;
-            dpdx=(u(i+1,j,1)-u(i-1,j,1))/2/dx;
-            dpdy=(u(i,j+1,1)-u(i,j-1,1))/2/dy;
-            d2udx2=(u(i+1,j,2)-2*u(i,j,2)+u(i-1,j,2))/dx^2;
-            d2vdx2=(u(i+1,j,3)-2*u(i,j,3)+u(i-1,j,3))/dx^2;
-            d2udy2=(u(i,j+1,2)-2*u(i,j,2)+u(i,j-1,2))/dy^2;
-            d2vdy2=(u(i,j+1,3)-2*u(i,j,3)+u(i,j-1,3))/dy^2;
-            
-            uvel2=sqrt(u(i,j,2).^2+u(i,j,3).^2).^2;
-            beta2=max(uvel2,rkappa*vel2ref);
-            
-            
-            u(i,j,1)=u(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j,1));
-            u(i,j,2)=u(i,j,2)-dt(i,j)/rho*(rho*u(i,j,2)*dudx+rho*u(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j,2));
-            u(i,j,3)=u(i,j,3)-dt(i,j)/rho*(rho*u(i,j,3)*dvdx+rho*u(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j,3));
-        end
+for i=imax-1:2
+    for j=jmax-1:2
+        dudx=(u(i+1,j,2)-u(i-1,j,2))/2/dx;
+        dudy=(u(i,j+1,2)-u(i,j-1,2))/2/dy;
+        dvdx=(u(i+1,j,3)-u(i-1,j,3))/2/dx;
+        dvdy=(u(i,j+1,3)-u(i,j-1,3))/2/dy;
+        dpdx=(u(i+1,j,1)-u(i-1,j,1))/2/dx;
+        dpdy=(u(i,j+1,1)-u(i,j-1,1))/2/dy;
+        d2udx2=(u(i+1,j,2)-2*u(i,j,2)+u(i-1,j,2))/dx^2;
+        d2vdx2=(u(i+1,j,3)-2*u(i,j,3)+u(i-1,j,3))/dx^2;
+        d2udy2=(u(i,j+1,2)-2*u(i,j,2)+u(i,j-1,2))/dy^2;
+        d2vdy2=(u(i,j+1,3)-2*u(i,j,3)+u(i,j-1,3))/dy^2;
+
+        uvel2=sqrt(u(i,j,2).^2+u(i,j,3).^2).^2;
+        beta2=max(uvel2,rkappa*vel2ref);
+
+
+        u(i,j,1)=u(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j,1));
+        u(i,j,2)=u(i,j,2)-dt(i,j)/rho*(rho*u(i,j,2)*dudx+rho*u(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j,2));
+        u(i,j,3)=u(i,j,3)-dt(i,j)/rho*(rho*u(i,j,3)*dvdx+rho*u(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j,3));
     end
+end
 
 
 end
@@ -1141,15 +1176,15 @@ for j=2:jmax-1
         d2vdx2=(uold(i+1,j,3)-2*uold(i,j,3)+uold(i-1,j,3))/dx^2;
         d2udy2=(uold(i,j+1,2)-2*uold(i,j,2)+uold(i,j-1,2))/dy^2;
         d2vdy2=(uold(i,j+1,3)-2*uold(i,j,3)+uold(i,j-1,3))/dy^2;
-        
+
         uvel2=sqrt(uold(i,j,2).^2+uold(i,j,3).^2).^2;
         beta2=max(uvel2,rkappa*vel2ref);
-        
-        
+
+
         u(i,j,1)=uold(i,j,1)-beta2*dt(i,j)*(rho*dudx+rho*dvdy-artviscx(i,j)-artviscy(i,j)-s(i,j,1));
         u(i,j,2)=uold(i,j,2)-dt(i,j)/rho*(rho*uold(i,j,2)*dudx+rho*uold(i,j,3)*dudy+dpdx-rmu*d2udx2-rmu*d2udy2-s(i,j,2));
         u(i,j,3)=uold(i,j,3)-dt(i,j)/rho*(rho*uold(i,j,3)*dvdx+rho*uold(i,j,3)*dvdy+dpdy-rmu*d2vdx2-rmu*d2vdy2-s(i,j,3));
-        
+
     end
 end
 %check convergence criteria
@@ -1172,7 +1207,7 @@ function pressure_rescaling(~)
 % x        % Temporary variable for x location
 % y        % Temporary variable for y location
 % deltap   % delta_pressure for rescaling all values
-% 
+%
 global imax jmax imms xmax xmin ymax ymin pinf
 global u
 
@@ -1237,7 +1272,7 @@ r2=max(rms(r2));
 r3=max(rms(r3));
 
 if n==1 || n==10
-   resinit=[norm(r1),norm(r2),norm(r3)]'; 
+    resinit=[norm(r1),norm(r2),norm(r3)]';
 end
 res(1)=norm(r1);
 res(2)=norm(r2);
@@ -1272,7 +1307,7 @@ end
 end
 
 %************************************************************************
-function Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm) %#ok<*INUSD> 
+function Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm) %#ok<*INUSD>
 %
 %Uses global variable(s): zero
 %Uses global variable(s): imax, jmax, neq, imms, xmax, xmin, ymax, ymin, rlength
@@ -1292,21 +1327,21 @@ global zero imax jmax neq imms xmax xmin ymax ymin u
 
 if imms==1
 
-% !************************************************************** */
-% !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
-% !************************************************************** */
-for j=1:jmax
-    for i=1:imax
-        for k=1:neq
-            x = (xmax - xmin)*(i-1)/(imax - 1);
-            y = (ymax - ymin)*(j-1)/(jmax - 1);
-            ummsArray(i,j,k) = umms(x,y,k);
+    % !************************************************************** */
+    % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
+    % !************************************************************** */
+    for j=1:jmax
+        for i=1:imax
+            for k=1:neq
+                x = (xmax - xmin)*(i-1)/(imax - 1);
+                y = (ymax - ymin)*(j-1)/(jmax - 1);
+                ummsArray(i,j,k) = umms(x,y,k);
+            end
         end
     end
-end
-rL1norm=[norm(u(:,:,1)-ummsArray(:,:,1),1);norm(u(:,:,2)-ummsArray(:,:,2),1);norm(u(:,:,3)-ummsArray(:,:,3),1)];
-rL2norm=[norm(u(:,:,1)-ummsArray(:,:,1),2);norm(u(:,:,2)-ummsArray(:,:,2),2);norm(u(:,:,3)-ummsArray(:,:,3),2)];
-rLinfnorm=[norm(u(:,:,1)-ummsArray(:,:,1),Inf);norm(u(:,:,2)-ummsArray(:,:,3),Inf);norm(u(:,:,3)-ummsArray(:,:,3),Inf)];
+    rL1norm=[norm(u(:,:,1)-ummsArray(:,:,1),1);norm(u(:,:,2)-ummsArray(:,:,2),1);norm(u(:,:,3)-ummsArray(:,:,3),1)];
+    rL2norm=[norm(u(:,:,1)-ummsArray(:,:,1),2);norm(u(:,:,2)-ummsArray(:,:,2),2);norm(u(:,:,3)-ummsArray(:,:,3),2)];
+    rLinfnorm=[norm(u(:,:,1)-ummsArray(:,:,1),Inf);norm(u(:,:,2)-ummsArray(:,:,3),Inf);norm(u(:,:,3)-ummsArray(:,:,3),Inf)];
 
 end
 
